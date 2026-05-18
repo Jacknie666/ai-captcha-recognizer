@@ -1,102 +1,96 @@
+# ⚙️ AutoRecoginizingCode (验证码识别引擎核心组件)
 
-## 环境要求
-
-- Python 3.7+
-- OpenCV
-- NumPy
-- TensorFlow (Keras)
-
-## 安装依赖
-
-建议在虚拟环境中安装依赖，以避免与系统库冲突。
-
-1.  **创建并激活虚拟环境 (可选但推荐，若不会虚拟环境，也可直接运行)**:
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate  # macOS/Linux
-    # venv\Scripts\activate   # Windows
-    ```
-
-2.  **安装所需库**:
-    ```bash
-    pip install opencv-python numpy tensorflow
-    ```
-    或者，如果有一个 `requirements.txt` 文件:
-    ```
-    opencv-python
-    numpy
-    tensorflow
-    ```
-    然后运行: `pip install -r requirements.txt`
-
-## 使用方法
-
-1.  **准备图片**:
-    *   将你想要识别的验证码图片（例如 `test1.png`, `my_captcha.jpg` 等）放入 `custom_images` 文件夹中。
-    *   确保图片中的数字是手写风格，并且背景相对简单，字符之间有一定区隔。
-
-2.  **修改脚本中的图片路径**:
-    打开 `ModelIdentify.py` 文件，找到以下这行代码：
-    ```python
-    captcha_file_path = 'custom_images/test1.png'
-    ```
-    将其中的 `'custom_images/test1.png'` 修改为你实际想要识别的图片文件的路径。例如，如果你想识别 `custom_images/my_image.png`，则修改为：
-    ```python
-    captcha_file_path = 'custom_images/my_image.png'
-    ```
-
-3.  **运行脚本**:
-    在项目根目录（即 `手写体` 文件夹）下打开终端或命令行，运行：
-    ```bash
-    python Model_Identify.py
-    ```
-
-4.  **查看结果**:
-    *   脚本运行时，会首先弹出一个名为 "Thresholded CAPTCHA" 的窗口，显示经过二值化处理的图片。你需要**在此窗口激活的状态下按任意键**，程序才会继续执行。
-    *   之后，如果找到字符，会弹出 "Segmented Characters" 窗口，显示在原始图片上圈出的被识别字符以及模型对每个字符的预测。同样，你需要**在此窗口激活的状态下按任意键**来关闭窗口并结束程序。
-    *   最终识别出的验证码文本会在终端打印出来。同时，每个分割字符的预测详情也会打印在终端。
-
-## 工作流程简述
-
-1.  **加载模型**: 加载预训练的 `mnist_cnn_best_model.h5`。
-2.  **读取图片**: 使用 OpenCV 读取指定的验证码图片。
-3.  **图像预处理**:
-    *   转换为灰度图。
-    *   使用 Otsu 方法进行二值化，使字符变为白色，背景变为黑色。
-4.  **字符分割**:
-    *   使用 `cv2.findContours` 寻找图像中的所有外部轮廓。
-    *   通过面积阈值过滤掉过小或过大的轮廓，保留可能是字符的轮廓。
-    *   将找到的字符轮廓按其 x 坐标从左到右排序。
-5.  **单个字符预测**:
-    *   对每个分割出的字符区域 (ROI)：
-        *   提取该区域。
-        *   添加黑色边框（padding）使其接近正方形，以保持字符在缩放时的宽高比。
-        *   缩放到 28x28 像素（MNIST 模型输入尺寸）。
-        *   归一化像素值到 0-1 范围。
-        *   调整形状以匹配模型输入要求 `(1, 28, 28, 1)`。
-        *   使用加载的 MNIST 模型进行预测。
-        *   获取概率最高的数字作为预测结果。
-6.  **结果组合**: 将所有单个字符的预测结果按顺序拼接成最终的验证码字符串。
-7.  **显示与输出**: 显示中间处理图像、最终分割图像和预测结果，并在控制台打印识别文本。
-
-## 注意事项与限制
-
-*   **模型能力**:
-    *   此模型基于 MNIST 数据集训练，因此**只能识别数字 0-9**。它无法识别字母或其他符号。
-    *   对于非 MNIST 风格的字体、严重的扭曲、旋转或噪声，识别效果可能会下降。
-*   **字符分割**:
-    *   当前的分割方法基于简单的轮廓检测和面积过滤。对于字符粘连、重叠、断裂，或者背景中有复杂干扰线/点的情况，分割效果可能不佳，从而导致识别错误。
-    *   轮廓排序仅按 x 坐标，适用于单行验证码。对于多行验证码，字符的读取顺序可能不正确（例如，可能会将第一行和第二行的字符混合排序）。
-    *   `cv2.contourArea(contour) > 50` 这个面积阈值可能需要根据你实际验证码中字符的大小进行调整。
-*   **图像预处理**:
-    *   `cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU` 假设字符比背景暗（在原始灰度图中），通过反转二值化后字符变白。如果你的验证码字符本身比背景亮，可能需要调整阈值化方法。
-*   **输入图片**:
-    *   图片应放置在 `custom_images` 文件夹下，并在脚本中正确指定路径。
-    *   支持 OpenCV `imread` 函数能够读取的常见图片格式 (如 PNG, JPG, BMP)。
-*   **调试窗口**: 程序会通过 `cv2.imshow` 显示图片。你需要激活这些窗口并按键才能使程序继续或结束。
-
-## 关于模型训练
-
-此 README 主要关注 `ModelIndentify.py` 的使用。项目中的 `Modertraining.py` 文件仅用于训练 `mnist_cnn_best_model.h5` 模型的脚本。如果你想了解模型是如何训练的，或者想重新训练模型，请查看该脚本的内容。
+> **定位与职责**：本目录为项目的核心算法与执行模块，封装了 CNN 模型结构定义、MNIST 高保真训练链路，以及基于 OpenCV 图像特征切割的手写体验证码端到端识别系统。
 
 ---
+
+## 💻 运行环境与依赖配置 (System Prerequisites)
+
+为了保障算法的高效运行与底层库的稳定性，请确保运行环境符合以下技术指标：
+
+- **基础平台**：Python 3.8+ (推荐 3.9 或 3.10)
+- **底层依赖库**：
+  - **OpenCV (`opencv-python`)**：提供高保真的灰度转换、Otsu 自适应二值化、轮廓检测及边界计算支持。
+  - **NumPy**：高效的矩阵运算与图像数组重整（Reshape/Normalize）抓手。
+  - **TensorFlow / Keras**：提供经典卷积神经网络（CNN）的结构搭建与 GPU 硬件加速推理支持。
+  - **scikit-learn**：提供 `train_test_split` 实现数据集的分层抽样与分发。
+
+### 📦 极速部署（三步走打法）
+
+1. **环境沙盒隔离（强烈推荐，防全局环境污染）**：
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # macOS/Linux
+   # Windows 环境请使用: .\venv\Scripts\activate
+   ```
+
+2. **安装核心库组件**：
+   ```bash
+   pip install --upgrade pip
+   pip install opencv-python numpy tensorflow scikit-learn matplotlib
+   ```
+
+---
+
+## 📖 核心组件打法与运行姿态 (Execution Architecture)
+
+项目采取“**离线训练模型，在线实时推理**”的模块化架构。
+
+### 1️⃣ 深度模型训练：`ModelTraining.py`
+本脚本用于构建并训练卷积神经网络。
+- **数据源**：自动拉取著名的 MNIST 手写体数据集，共 $60,000$ 张训练图，$10,000$ 张测试图。
+- **数据分发**：以 $90\% : 10\%$ 的比例，利用 `stratify` 分层抽样策略切分出训练集与验证集，保持样本标签分布一致。
+- **保存结果**：训练结束后最佳模型将保存为当前目录下的 `mnist_cnn_best_model.h5`。
+
+```bash
+# 启动离线模型高保真训练
+python3 ModelTraining.py
+```
+
+### 2️⃣ 验证码端到端推理：`Model_Identify.py`
+本脚本用于对待识别的验证码进行图像切割与单字元高精度预测。
+- **默认测试图**：`custom_images/test1.png`
+- **调用姿态**：
+  1. 将测试图放入 `custom_images` 文件夹。
+  2. 修改 `Model_Identify.py` 中的 `captcha_file_path` 为目标图路径。
+  3. 执行识别脚本：
+     ```bash
+     python3 Model_Identify.py
+     ```
+  4. **交互确认**：程序在运行时会弹出 OpenCV 调试图像，**请在弹出的图片窗口激活的状态下，按键盘任意键**，程序才会继续向下运行并最终关闭所有窗口。
+
+---
+
+## 🔍 OpenCV 图像预处理与分割机制解析 (Image Processing Mechanics)
+
+验证码分割的难点在于滤除杂色并完整保留单个字符的几何拓扑结构。本模块底层核心打法如下：
+
+1. **灰度与二值化转换**：
+   ```python
+   gray_image = cv2.cvtColor(captcha_image_bgr, cv2.COLOR_BGR2GRAY)
+   _, thresh_image = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+   ```
+   * *注：`THRESH_BINARY_INV` 确保将原始偏暗的数字变为高亮白色，背景变为黑色，完全对齐 MNIST 的输入标准。*
+2. **字符物理重排序（Left-to-Right Sorting）**：
+   通过 `cv2.findContours` 提取出所有字符轮廓后，由于查找顺序是随机的，我们提取每个轮廓的 Bounding Box，并对其进行 X 轴坐标物理升序排序，打通从左到右拼接验证码的业务闭环：
+   ```python
+   bounding_boxes = sorted(bounding_boxes, key=lambda b: b[0])
+   ```
+3. **等比例保留 Padding**：
+   直接缩放非正方形 ROI 图像会导致数字字符严重变形。我们自动计算宽高差值，采用黑色背景像素进行对称扩充：
+   ```python
+   pad_y = int((max(w,h) - h)/2)
+   pad_x = int((max(w,h) - w)/2)
+   char_padded = cv2.copyMakeBorder(char_roi, pad_y, pad_y, pad_x, pad_x, cv2.BORDER_CONSTANT, value=[0,0,0])
+   ```
+
+---
+
+## ⚠️ 避坑指南与技术边界 (Troubleshooting & Limitations)
+
+- **窗口无响应/卡死**：
+  - *原因*：OpenCV 的 `cv2.imshow` 窗口需要激活键盘监听。
+  - *解决*：鼠标点击弹出的 `Thresholded CAPTCHA` 或 `Segmented Characters` 图片窗口，按键盘上的**空格键**或**任意字母键**即可顺利通过。
+- **字母/复杂噪点识别错误**：
+  - *局限*：由于底层分类器 Dense 层的输出神经元为 10 个（即对应数字 0-9），模型在逻辑上**无法识别任何英文字母、汉字或标点符号**。
+  - *解决*：若需支持混合字母，需重新编写 `ModelTraining.py` 引入 EMNIST 或自定义字符集重新编译 Softmax 输出维度。
